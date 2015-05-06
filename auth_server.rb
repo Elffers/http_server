@@ -40,6 +40,7 @@ end
 
 s = WEBrick::HTTPServer.new :Port => 8000
 s.mount '/', AuthServlet
+s.logger.level = 5
 
 trap 'INT' do s.shutdown end
 

@@ -23,6 +23,7 @@ class DigestAuth
     components.push "cnonce=#{cnonce.dump}"
     components.push "response=#{password_hash.dump}"
     components.push "opaque=#{opaque.dump}" if opaque
+    components.push "algorithm=#{algorithm}"
     header = components.join(", ")
     header.prepend("Digest ")
   end
@@ -63,6 +64,6 @@ class DigestAuth
     @realm = realm
     @nonce = nonce
     @opaque = opaque
-    @algorithm = algo
+    @algorithm = algo || "MD5"
   end
 end
