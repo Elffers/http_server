@@ -19,6 +19,7 @@
 # same information to verify the client's credentials.
 
 require 'digest'
+require 'securerandom'
 require 'pry'
 
 class DigestAuth
@@ -36,6 +37,7 @@ class DigestAuth
     # Input is the value of the 'WWW-Authenticate' header sent by the server,
     # which comes in as a set of key-value pairs.
     parse(input)
+    @cnonce = cnonce
 
     components = []
     password_hash = password_hash(realm, uri)
@@ -45,7 +47,7 @@ class DigestAuth
     components.push "uri=#{uri.dump}"
     components.push "qop=auth"
     components.push "nc=#{nonce_count}"
-    components.push "cnonce=#{cnonce.dump}"
+    components.push "cnonce=#{@cnonce.dump}"
     components.push "response=#{password_hash.dump}"
     components.push "opaque=#{opaque.dump}" if opaque
     components.push "algorithm=#{algorithm}"
@@ -53,8 +55,12 @@ class DigestAuth
     header.prepend("Digest ")
   end
 
+  # cnonce is an optional directive to make cracking the hashed password
+  # even more difficult (similar to salting the password). This is to
+  # prevent against MITM and other attacks (Sec. 4.9-4.11).
+
   def cnonce
-    "0a4f113b"
+    SecureRandom.hex 16
   end
 
   def nonce_count
@@ -70,7 +76,7 @@ class DigestAuth
     if algorithm == "MD5-sess"
       sess_a1 = [@username, realm, @password].join(":")
       seg1 = Digest::MD5.hexdigest(sess_a1)
-      a1 = [seg1, nonce, cnonce].join(":")
+      a1 = [seg1, nonce, @cnonce].join(":")
       ha1 = Digest::MD5.hexdigest(a1)
     else
       a1 = [@username, realm, @password].join(":")
@@ -78,7 +84,7 @@ class DigestAuth
     end
     a2 = ["GET", uri].join(":")
     ha2 = Digest::MD5.hexdigest(a2)
-    request_digest = [ha1, nonce, nonce_count, cnonce, qop, ha2].join(":")
+    request_digest = [ha1, nonce, nonce_count, @cnonce, qop, ha2].join(":")
     Digest::MD5.hexdigest(request_digest)
   end
 

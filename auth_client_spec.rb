@@ -18,14 +18,18 @@ describe DigestAuth do
     let(:expected) { %Q{Digest username="Mufasa", realm="#{realm}", nonce="#{nonce}", uri="#{uri}", qop=auth, nc=00000001, cnonce="0a4f113b", response="6629fae49393a05397450978507c4ef1", opaque="#{opaque}", algorithm=MD5} }
 
     it "should return the proper headers" do
+      allow(digester).to receive(:cnonce) { "0a4f113b" }
       response = digester.authenticate(input, uri )
       expect(response).to eq expected
     end
-
   end
 
   context ".password_hash" do
     it "returns md5 hash by default" do
+      def digester.cnonce
+        @cnonce = "0a4f113b"
+      end
+      digester.cnonce
       digester.parse(input)
       expect(digester.password_hash(realm, uri)).to eq "6629fae49393a05397450978507c4ef1"
     end
