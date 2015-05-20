@@ -1,3 +1,23 @@
+# Implementation of HTTP Digest Authentication, as per RFC 2617
+# (https://www.ietf.org/rfc/rfc2617.txt)
+#
+# HTTP Authentication is to ensure that a client is authenticated
+# on a server for a single request.
+#
+# Basic Authentication is not secure because the username and password
+# are sent via clear text (not plain text, but Base64 encoded,
+# which does not require a shared secret to decode.
+#
+# Digest Auth is more secure because the client uses the password
+# to hash the information it gets from the 'www-authenticate' header
+# received from the server response (which has a 401 status).
+#
+# The client then sends this hashed response as the value in 'response' within
+# in the 'Authorization' header (Sec 3.2.2) in its subsequent request.
+#
+# The server can then compare this hash against its own hash of the
+# same information to verify the client's credentials.
+
 require 'digest'
 
 class DigestAuth
@@ -6,7 +26,8 @@ class DigestAuth
   attr_accessor :nonce, :realm, :opaque, :algorithm
 
   def initialize(input)
-    #This is the value of the WWW-Authenticate header
+    # Input is the value of the 'WWW-Authenticate' header sent by the server,
+    # which comes in as a set of key-value pairs.
     @input = input
     parse_input
   end
@@ -56,7 +77,8 @@ class DigestAuth
     "auth"
   end
 
-
+  # Parses out expected key-value pairs such as realm, nonce, as well as
+  # optional params such as opaque and algorithm
   def parse_input
     /Digest\s+realm="(?<realm>.+?)".+nonce="(?<nonce>\S+)".+/ =~ input
     /algorithm=(?<algo>[^,]+)/ =~ input
