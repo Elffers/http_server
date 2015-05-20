@@ -15,8 +15,8 @@ res = http.request req
 
 input = res['www-authenticate']
 
-digest_auth = DigestAuth.new input
-auth = digest_auth.authenticate('username', 'password', uri.request_uri)
+digest_auth = DigestAuth.new('username', 'password')
+auth = digest_auth.authenticate(input, uri.request_uri)
 
 req = Net::HTTP::Get.new uri.request_uri
 req.add_field 'Authorization', auth

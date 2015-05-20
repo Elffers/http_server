@@ -19,23 +19,27 @@
 # same information to verify the client's credentials.
 
 require 'digest'
+require 'pry'
 
 class DigestAuth
 
   attr_reader :input
   attr_accessor :nonce, :realm, :opaque, :algorithm
 
-  def initialize(input)
-    # Input is the value of the 'WWW-Authenticate' header sent by the server,
-    # which comes in as a set of key-value pairs.
-    @input = input
-    parse_input
+  def initialize(username, password)
+    @nonce_count = 0
+    @username = username
+    @password = password
   end
 
-  def authenticate(username, password, uri)
+  def authenticate(input, uri)
+    # Input is the value of the 'WWW-Authenticate' header sent by the server,
+    # which comes in as a set of key-value pairs.
+    parse(input)
+
     components = []
-    password_hash = password_hash(username, realm, password, uri)
-    components.push "username=#{username.dump}"
+    password_hash = password_hash(realm, uri)
+    components.push "username=#{@username.dump}"
     components.push "realm=#{realm.dump}"
     components.push "nonce=#{nonce.dump}"
     components.push "uri=#{uri.dump}"
@@ -54,17 +58,22 @@ class DigestAuth
   end
 
   def nonce_count
-    "00000001"
+    sprintf("%08d", @nonce_count)
   end
 
-  def password_hash(username, realm, password, uri)
+  def increment_nonce_count
+    @nonce_count +=1
+  end
+
+  def password_hash(realm, uri)
+    increment_nonce_count
     if algorithm == "MD5-sess"
-      sess_a1 = [username, realm, password].join(":")
+      sess_a1 = [@username, realm, @password].join(":")
       seg1 = Digest::MD5.hexdigest(sess_a1)
       a1 = [seg1, nonce, cnonce].join(":")
       ha1 = Digest::MD5.hexdigest(a1)
     else
-      a1 = [username, realm, password].join(":")
+      a1 = [@username, realm, @password].join(":")
       ha1 = Digest::MD5.hexdigest(a1)
     end
     a2 = ["GET", uri].join(":")
@@ -79,7 +88,7 @@ class DigestAuth
 
   # Parses out expected key-value pairs such as realm, nonce, as well as
   # optional params such as opaque and algorithm
-  def parse_input
+  def parse(input)
     /Digest\s+realm="(?<realm>.+?)".+nonce="(?<nonce>\S+)".+/ =~ input
     /algorithm=(?<algo>[^,]+)/ =~ input
     /opaque="(?<opaque>\S+)"/ =~ input
