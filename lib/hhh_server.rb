@@ -1,7 +1,7 @@
 require 'socket'
 
 class HHHServer
-  def self.start
+  def start
 
     server = TCPServer.new 8000 # Server bind to port 8000
 
