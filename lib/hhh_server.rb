@@ -21,14 +21,40 @@ class HHHServer
       request = client.gets("\r\n\r\n")
 
       # Extracts the request uri
-      /[A-Z]+ (?<path>[^ ]+)/ =~ request
+      /(?<method>[A-Z]+) (?<request_uri>[^ ]+)/ =~ request
+
+      # Extracts the path
+      /(?<path>.+)\?/ =~ request_uri
+
+      # Extracts the query string from path
+      /\?(?<query_string>.*)/ =~ request_uri
+
+      env = {
+        REQUEST_METHOD    => method,
+        HTTP_VERSION      => "1.1",
+        RACK_VERSION      => Rack::VERSION,
+        SERVER_PROTOCOL   => "1.1",
+        QUERY_STRING      => query_string || "",
+        PATH_INFO         => path,
+        SCRIPT_NAME       => path,
+        REQUEST_PATH      => request_uri,
+        # RACK_INPUT      => rack_input,
+        RACK_ERRORS       => $stderr,
+        RACK_MULTITHREAD  => false,
+        RACK_MULTIPROCESS => false,
+        RACK_RUNONCE      => false,
+        RACK_URL_SCHEME   => "http",
+        RACK_IS_HIJACK    => false,
+        RACK_HIJACK       => lambda { raise NotImplementedError, "only partial hijack is supported."},
+        RACK_HIJACK_IO    => nil
+      }
 
       status = "HTTP/1.1 "
-      # tacks on path to current dir to request uri
-      path = Dir.pwd + path
+      # tacks on request_uri to current dir to request uri
+      request_uri = Dir.pwd + request_uri
 
       # TODO: make sure path name is secure using Pathname
-      if File.directory? path
+      if File.directory? request_uri
         output = "<ul>"
         Dir.entries(Dir.pwd).map do |file|
           output += "<li><a href=\"/#{file}\">#{file}</a></li>"
@@ -37,8 +63,8 @@ class HHHServer
         body = output
         status += "200 OK"
         content_type = 'text/html'
-      elsif File.exists? path
-        body = File.read path
+      elsif File.exists? request_uri
+        body = File.read request_uri
         status += "200 OK"
         content_type = 'text/plain'
       else
