@@ -24,56 +24,66 @@ class HHHServer
       /(?<method>[A-Z]+) (?<request_uri>[^ ]+)/ =~ request
 
       # Extracts the path
-      /(?<path>.+)\?/ =~ request_uri
+      /(?<path>.+)\??/ =~ request_uri
 
       # Extracts the query string from path
       /\?(?<query_string>.*)/ =~ request_uri
+      rack_input = StringIO.new("")
+      rack_input.set_encoding(Encoding::BINARY)
+
 
       env = {
-        REQUEST_METHOD    => method,
-        HTTP_VERSION      => "1.1",
-        RACK_VERSION      => Rack::VERSION,
-        SERVER_PROTOCOL   => "1.1",
-        QUERY_STRING      => query_string || "",
-        PATH_INFO         => path,
-        SCRIPT_NAME       => path,
-        REQUEST_PATH      => request_uri,
-        # RACK_INPUT      => rack_input,
-        RACK_ERRORS       => $stderr,
-        RACK_MULTITHREAD  => false,
-        RACK_MULTIPROCESS => false,
-        RACK_RUNONCE      => false,
-        RACK_URL_SCHEME   => "http",
-        RACK_IS_HIJACK    => false,
-        RACK_HIJACK       => lambda { raise NotImplementedError, "only partial hijack is supported."},
-        RACK_HIJACK_IO    => nil
+        'HTTP_VERSION'      => "1.1",
+        'REQUEST_METHOD'    => method,
+        'rack.version'      => Rack::VERSION,
+        'SERVER_PROTOCOL'   => "1.1",
+        'SERVER_NAME'       => "HHH",
+        'SERVER_PORT'       => "8000",
+        'QUERY_STRING'      => query_string || "",
+        'PATH_INFO'         => path,
+        'SCRIPT_NAME'       => "",
+        'REQUEST_PATH'      => request_uri,
+        'rack.input'        => rack_input,
+        'rack.errors'       => $stderr,
+        'rack.multithread'  => false,
+        'rack.multiprocess' => false,
+        'rack.runonce'      => false,
+        'rack.url_scheme'   => "http",
+        'rack.is_hijack'    => false,
+        'rack.run_once'     => true,
       }
 
-      status = "HTTP/1.1 "
+      status, headers, body = @app.call(env)
+      p status
+      p headers
+      p body
+
+      # status = "HTTP/1.1 "
+
       # tacks on request_uri to current dir to request uri
-      request_uri = Dir.pwd + request_uri
+      # request_uri = Dir.pwd + request_uri
 
       # TODO: make sure path name is secure using Pathname
-      if File.directory? request_uri
-        output = "<ul>"
-        Dir.entries(Dir.pwd).map do |file|
-          output += "<li><a href=\"/#{file}\">#{file}</a></li>"
-        end
-        output += "</ul>\n"
-        body = output
-        status += "200 OK"
-        content_type = 'text/html'
-      elsif File.exists? request_uri
-        body = File.read request_uri
-        status += "200 OK"
-        content_type = 'text/plain'
-      else
-        body = "404 Not Found :("
-        status += "404 Not Found"
-        content_type = "text/plain"
-      end
+      # if File.directory? request_uri
+      #   output = "<ul>"
+      #   Dir.entries(Dir.pwd).map do |file|
+      #     output += "<li><a href=\"/#{file}\">#{file}</a></li>"
+      #   end
+      #   output += "</ul>\n"
+      #   body = output
+      #   status += "200 OK"
+      #   content_type = 'text/html'
+      # elsif File.exists? request_uri
+      #   body = File.read request_uri
+      #   status += "200 OK"
+      #   content_type = 'text/plain'
+      # else
+      #   body = "404 Not Found :("
+      #   status += "404 Not Found"
+      #   content_type = "text/plain"
+      # end
 
-      response = status + "\r\nconnection: close\r\ncontent-type:" + content_type + "\r\n\r\n"
+      response = status.to_s + "\r\nconnection: close\r\ncontent-type:" + content_type + "\r\n\r\n"
 
       client.write response
       client.write body
