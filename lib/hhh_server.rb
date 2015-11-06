@@ -1,6 +1,10 @@
 require 'socket'
 
 class HHHServer
+  HTTP_STATUS_MESSAGE = {
+    200 => "OK"
+  }
+
   def initialize(app)
     @app = app
   end
@@ -53,10 +57,7 @@ class HHHServer
         'rack.run_once'     => true,
       }
 
-      status, headers, body = @app.call(env)
-      p status
-      p headers
-      p body
+      status_code, header_hash, body = @app.call(env)
 
       # status = "HTTP/1.1 "
 
@@ -82,11 +83,22 @@ class HHHServer
       #   status += "404 Not Found"
       #   content_type = "text/plain"
       # end
+      # HTTP/1.1 301 Moved Permanently
 
-      response = status.to_s + "\r\nconnection: close\r\ncontent-type:" + content_type + "\r\n\r\n"
+      message = HTTP_STATUS_MESSAGE[status_code]
 
-      client.write response
-      client.write body
+      status = "HTTP/1.1 #{status_code} #{message}\r\n"
+
+      client.write status
+
+      headers = header_hash.map do |k, v|
+        "#{k}: #{v}\r\n"
+      end.join
+
+      client.write headers
+      client.write "\r\n"
+
+      body.each { |part| client.write part }
 
       client.close
     end
