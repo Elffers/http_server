@@ -24,6 +24,7 @@ class HHHServer
       # This only reads the request header, since body always comes after a newline
       request = client.gets("\r\n\r\n")
 
+
       # Extracts the request uri
       /(?<method>[A-Z]+) (?<request_uri>[^ ]+)/ =~ request
 
@@ -32,9 +33,21 @@ class HHHServer
 
       # Extracts the query string from path
       /\?(?<query_string>.*)/ =~ request_uri
-      rack_input = StringIO.new("")
-      rack_input.set_encoding(Encoding::BINARY)
 
+      request_headers = request.split("\r\n")
+      request_headers.shift
+
+      request_hash = {}
+      request_headers.each do |header|
+        k, v = header.split(":")
+        request_hash[k.downcase] = v
+      end
+
+      content_length = request_hash["content-length"] || 0
+      request_body = client.read(content_length.to_i)
+
+      rack_input = StringIO.new(request_body)
+      rack_input.set_encoding(Encoding::BINARY)
 
       env = {
         'HTTP_VERSION'      => "1.1",
